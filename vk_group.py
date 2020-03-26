@@ -214,29 +214,33 @@ def main():
     key_words = ['PUBG', 'Fortnite', 'Dota 2', 'CSGO', 'Ранг', 'Кол-во часов', 'Ссылка на стр вк', ]
     setting_words = ['Смотреть анкеты', 'Создать свою']
     csgo_rangs = ['Сильвер', 'Звёзды', 'Калаши', 'Бигастар - Лем', 'Суприм - Глобал']
-    csgo_hours = ["100-300", "300-500", "500-800", "800-1000", "1500"]
+    csgo_hours = ["100-500", "500-800", "800-1000", "1000 - 1500", "1500+"]
     rang_csgo_flag = False
     csgo_flag = True
     lst_flag = False
     menu_flag = True
     con = sqlite3.connect('db/csgo.sqlite3')
     cur = con.cursor()
+    vk = vk_session.get_api()
     for event in longpoll.listen():
+        if event.type == VkBotEventType.MESSAGE_TYPING_STATE:
+            if menu_flag:
+                vk.messages.send(user_id=event.obj.from_id,
+                                 random_id=random.randint(0, 2 ** 64),
+                                 message=f"Выберите режим",
+                                 keyboard=json.dumps(menu_keyboard, ensure_ascii=False)
+                                 )
+                menu_flag = False
         if event.type == VkBotEventType.MESSAGE_NEW:
-            vk = vk_session.get_api()
-            txt = event.obj.message['text']
-            vk_url = 'https://vk.com/id' + str(event.obj.message['from_id'])
+            cur.execute('''UPDATE csgo
+                        SET last_msg = ?
+                        WHERE vk_id = ?''',
+                        (event.obj.message['text'], 'https://vk.com/id' + str(event.obj.message['from_id']),))
+            con.commit()
             rank = ''
-            if event.obj.message['text'] not in comand_lst and txt not in key_words:
-                if menu_flag:
-                    vk.messages.send(user_id=event.obj.message['from_id'],
-                                     random_id=random.randint(0, 2 ** 64),
-                                     message=f"Выберите режим",
-                                     keyboard=json.dumps(menu_keyboard, ensure_ascii=False)
-                                     )
-                    menu_flag = False
+            if cur.execute('''SELECT last_msg FROM csgo WHERE vk_id = ?''', ('https://vk.com/id' + str(event.obj.message['from_id']),)).fetchall()[0][0] not in comand_lst and cur.execute('''SELECT last_msg FROM csgo WHERE vk_id = ?''', ('https://vk.com/id' + str(event.obj.message['from_id']),)).fetchall()[0][0] not in key_words:
                 user_id = event.obj.message['from_id']
-                if event.obj.message['text'] == 'Смотреть анкеты':
+                if cur.execute('''SELECT last_msg FROM csgo WHERE vk_id = ?''', ('https://vk.com/id' + str(event.obj.message['from_id']),)).fetchall()[0][0] == 'Смотреть анкеты':
 
                     profiles = cur.execute('''SELECT * from csgo  WHERE vk_id is not Null''').fetchall()
                     print(profiles)
@@ -248,8 +252,6 @@ def main():
 
                     for event in longpoll.listen():
                         if event.type == VkBotEventType.MESSAGE_NEW:
-                            vk_url = 'https://vk.com/id' + str(event.obj.message['from_id'])
-                            print(vk_url)
                             cur.execute('''UPDATE csgo
                                         SET last_msg = ?
                                         WHERE vk_id = ?''', (event.obj.message['text'], 'https://vk.com/id' + str(event.obj.message['from_id']),))
@@ -279,7 +281,7 @@ def main():
                             except IndexError:
                                 pass
                             try:
-                                stroka = f"Ранг - {profiles[counter][1]}, Колличество часов - {profiles[cur.execute('''SELECT counter from csgo WHERE vk_id = ?''', ('https://vk.com/id' + str(event.obj.message['from_id']),)).fetchall()[0][0]][2]}"
+                                stroka = f"Ранг - {profiles[cur.execute('''SELECT counter from csgo WHERE vk_id = ?''', ('https://vk.com/id' + str(event.obj.message['from_id']),)).fetchall()[0][0]][1]}, Колличество часов - {profiles[cur.execute('''SELECT counter from csgo WHERE vk_id = ?''', ('https://vk.com/id' + str(event.obj.message['from_id']),)).fetchall()[0][0]][2]}"
                                 vk.messages.send(user_id=event.obj.message['from_id'],
                                                  random_id=random.randint(0, 2 ** 64),
                                                  message=stroka,
@@ -291,11 +293,11 @@ def main():
                                 cur.execute('''UPDATE csgo 
                                                 SET counter = 0
                                                 WHERE vk_id = ?''',
-                                            (vk_url,)).fetchall()
+                                            ('https://vk.com/id' + str(event.obj.message['from_id']),)).fetchall()
 
                             con.commit()
 
-                if txt == 'Создать свою':
+                if cur.execute('''SELECT last_msg FROM csgo WHERE vk_id = ?''', ('https://vk.com/id' + str(event.obj.message['from_id']),)).fetchall()[0][0] == 'Создать свою':
                     vk.messages.send(user_id=event.obj.message['from_id'],
                                      random_id=random.randint(0, 2 ** 64),
                                      message=f"Выберите игру:",
