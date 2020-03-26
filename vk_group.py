@@ -244,23 +244,37 @@ def main():
                                      random_id=random.randint(0, 2 ** 64),
                                      message=stroka,
                                      keyboard=json.dumps(like_keyboard, ensure_ascii=False))
+
                     for event in longpoll.listen():
                         if event.type == VkBotEventType.MESSAGE_NEW:
-                            counter = cur.execute('''SELECT counter from csgo WHERE vk_id = ?''', (vk_url,)).fetchall()[0][0]
+                            vk_url = 'https://vk.com/id' + str(event.obj.message['from_id'])
+                            cur.execute('''UPDATE csgo
+                                        SET last_msg = ?
+                                        WHERE vk_id = ?''', (event.obj.message['text'], vk_url,))
+                            counter = \
+                            cur.execute('''SELECT counter from csgo WHERE vk_id = ?''', (vk_url,)).fetchall()[0][0]
                             print(counter)
                             txt = event.obj.message['text']
+                            print(cur.execute('''SELECT last_msg FROM csgo WHERE vk_id = ?''', (vk_url,)).fetchall())
                             try:
-                                if event.obj.message['text'] == 'Понравилось':
+                                if cur.execute('''SELECT last_msg FROM csgo WHERE vk_id = ?''', (vk_url,)).fetchall()[0][0] == 'Понравилось':
                                     vk.messages.send(user_id=event.obj.message['from_id'],
                                                      random_id=random.randint(0, 2 ** 64),
                                                      message=f"Профиль игрока - {profiles[cur.execute('''SELECT counter from csgo WHERE vk_id = ?''', (vk_url,)).fetchall()[0][0]][0]}")
                                     cur.execute('''UPDATE csgo 
                                                 SET counter = counter + 1
                                                 WHERE vk_id = ?''', (vk_url,)).fetchall()
-                                elif event.obj.message['text'] == 'Не понравилось':
+                                    counter = \
+                                        cur.execute('''SELECT counter from csgo WHERE vk_id = ?''',
+                                                    (vk_url,)).fetchall()[
+                                            0][0]
+                                    print(counter)
+                                elif cur.execute('''SELECT last_msg FROM csgo WHERE vk_id = ?''', (vk_url,)).fetchall()[0][0] == 'Не понравилось':
                                     cur.execute('''UPDATE csgo 
                                                    SET counter = counter + 1
-                                                   WHERE vk_id = ?''',(vk_url,)).fetchall()
+                                                   WHERE vk_id = ?''', (vk_url,)).fetchall()
+                                    counter = cur.execute('''SELECT counter from csgo WHERE vk_id = ?''', (vk_url,)).fetchall()[0][0]
+                                    print(counter)
                             except IndexError:
                                 pass
                             try:
@@ -277,7 +291,9 @@ def main():
                                                 SET counter = 0
                                                 WHERE vk_id = ?''',
                                             (vk_url,)).fetchall()
+
                             con.commit()
+
                 if txt == 'Создать свою':
                     vk.messages.send(user_id=event.obj.message['from_id'],
                                      random_id=random.randint(0, 2 ** 64),
