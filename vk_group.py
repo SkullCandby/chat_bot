@@ -5,6 +5,33 @@ import random
 import datetime
 import json
 import sqlite3
+import asyncio
+
+vk_session = vk_api.VkApi(
+    token=')))))')
+
+longpoll = VkBotLongPoll(vk_session, '193164016')
+comand_lst = ['!статус', '!Россия']
+key_words = ['PUBG', 'Fortnite', 'Dota 2', 'CSGO', 'Ранг', 'Кол-во часов', 'Ссылка на стр вк', 'Меню режимов']
+setting_words = ['Смотреть анкеты', 'Создать свою']
+csgo_rangs = ['Сильвер', 'Звёзды', 'Калаши', 'Бигастар - Лем', 'Суприм - Глобал']
+csgo_hours = ["100-500", "500-800", "800-1000", "1000 - 1500", "1500+"]
+rang_csgo_flag = False
+csgo_flag = True
+lst_flag = False
+menu_flag = True
+vk = vk_session.get_api()
+
+
+async def send_msg(event):
+    global menu_flag
+    vk.messages.send(user_id=event.obj.from_id,
+                     random_id=random.randint(0, 2 ** 64),
+                     message=f"Выберите режим",
+                     keyboard=json.dumps(menu_keyboard, ensure_ascii=False)
+                     )
+    menu_flag = False
+
 
 like_keyboard = {
     "one_time": False,
@@ -25,11 +52,19 @@ like_keyboard = {
                 },
                 "color": "primary"
             },
+            {
+                "action": {
+                    "type": "text",
+                    "payload": "{\"button\": \"2\"}",
+                    "label": "Меню режимов"
+                },
+                "color": "positive"
+            }
         ]
     ]
 }
 menu_keyboard = {
-    "one_time": True,
+    "one_time": False,
     "buttons": [
         [{
             "action": {
@@ -88,6 +123,7 @@ keyboard = {
         ]
     ]
 }
+
 csgo_keyboard = {
     "one_time": False,
     "buttons": [
@@ -205,32 +241,17 @@ csgo_rang_keyboard = {
 }
 
 
-def main():
-    vk_session = vk_api.VkApi(
-        token='5a8ec1e58a79d88b952ee899071f2a021fbcb656497358cbdec9143044f8d5e5410f9fa2a71fd001486bf')
-
-    longpoll = VkBotLongPoll(vk_session, '193164016')
-    comand_lst = ['!статус', '!Россия']
-    key_words = ['PUBG', 'Fortnite', 'Dota 2', 'CSGO', 'Ранг', 'Кол-во часов', 'Ссылка на стр вк', ]
-    setting_words = ['Смотреть анкеты', 'Создать свою']
-    csgo_rangs = ['Сильвер', 'Звёзды', 'Калаши', 'Бигастар - Лем', 'Суприм - Глобал']
-    csgo_hours = ["100-500", "500-800", "800-1000", "1000 - 1500", "1500+"]
+async def main():
     rang_csgo_flag = False
     csgo_flag = True
     lst_flag = False
     menu_flag = True
     con = sqlite3.connect('db/csgo.sqlite3')
     cur = con.cursor()
-    vk = vk_session.get_api()
     for event in longpoll.listen():
         if event.type == VkBotEventType.MESSAGE_TYPING_STATE:
             if menu_flag:
-                vk.messages.send(user_id=event.obj.from_id,
-                                 random_id=random.randint(0, 2 ** 64),
-                                 message=f"Выберите режим",
-                                 keyboard=json.dumps(menu_keyboard, ensure_ascii=False)
-                                 )
-                menu_flag = False
+                await send_msg(event)
         if event.type == VkBotEventType.MESSAGE_NEW:
             cur.execute('''UPDATE csgo
                         SET last_msg = ?
@@ -238,66 +259,125 @@ def main():
                         (event.obj.message['text'], 'https://vk.com/id' + str(event.obj.message['from_id']),))
             con.commit()
             rank = ''
-            if cur.execute('''SELECT last_msg FROM csgo WHERE vk_id = ?''', ('https://vk.com/id' + str(event.obj.message['from_id']),)).fetchall()[0][0] not in comand_lst and cur.execute('''SELECT last_msg FROM csgo WHERE vk_id = ?''', ('https://vk.com/id' + str(event.obj.message['from_id']),)).fetchall()[0][0] not in key_words:
+            txt = event.obj.message['text']
+            if txt not in comand_lst and txt not in key_words:
                 user_id = event.obj.message['from_id']
-                if cur.execute('''SELECT last_msg FROM csgo WHERE vk_id = ?''', ('https://vk.com/id' + str(event.obj.message['from_id']),)).fetchall()[0][0] == 'Смотреть анкеты':
+                try:
+                    if cur.execute('''SELECT last_msg FROM csgo WHERE vk_id = ?''',
+                                   ('https://vk.com/id' + str(event.obj.message['from_id']),)).fetchall()[0][
+                        0] == 'Смотреть анкеты':
+                        first_flag = True
+                        profiles = cur.execute('''SELECT * from csgo  WHERE vk_id is not Null''').fetchall()
+                        print(profiles)
+                        stroka = f"Ранг - {profiles[cur.execute('''SELECT counter from csgo WHERE vk_id = ?''', ('https://vk.com/id' + str(event.obj.message['from_id']),)).fetchall()[0][0]][1]}, Колличество часов - {profiles[cur.execute('''SELECT counter from csgo WHERE vk_id = ?''', ('https://vk.com/id' + str(event.obj.message['from_id']),)).fetchall()[0][0]][2]}"
+                        vk.messages.send(user_id=user_id,
+                                         random_id=random.randint(0, 2 ** 64),
+                                         message=stroka,
+                                         keyboard=json.dumps(like_keyboard, ensure_ascii=False))
+                        send_flag = True
 
-                    profiles = cur.execute('''SELECT * from csgo  WHERE vk_id is not Null''').fetchall()
-                    print(profiles)
-                    stroka = f"Ранг - {profiles[cur.execute('''SELECT counter from csgo WHERE vk_id = ?''', ('https://vk.com/id' + str(event.obj.message['from_id']),)).fetchall()[0][0]][1]}, Колличество часов - {profiles[cur.execute('''SELECT counter from csgo WHERE vk_id = ?''', ('https://vk.com/id' + str(event.obj.message['from_id']),)).fetchall()[0][0]][2]}"
-                    vk.messages.send(user_id=user_id,
-                                     random_id=random.randint(0, 2 ** 64),
-                                     message=stroka,
-                                     keyboard=json.dumps(like_keyboard, ensure_ascii=False))
-
-                    for event in longpoll.listen():
-                        if event.type == VkBotEventType.MESSAGE_NEW:
-                            cur.execute('''UPDATE csgo
-                                        SET last_msg = ?
-                                        WHERE vk_id = ?''', (event.obj.message['text'], 'https://vk.com/id' + str(event.obj.message['from_id']),))
-                            counter = cur.execute('''SELECT counter from csgo WHERE vk_id = ?''', ('https://vk.com/id' + str(event.obj.message['from_id']),)).fetchall()
-                            print(counter)
-                            txt = event.obj.message['text']
-                            print(cur.execute('''SELECT last_msg FROM csgo WHERE vk_id = ?''', ('https://vk.com/id' + str(event.obj.message['from_id']),)).fetchall())
-                            try:
-                                if cur.execute('''SELECT last_msg FROM csgo WHERE vk_id = ?''', ('https://vk.com/id' + str(event.obj.message['from_id']),)).fetchall()[0][0] == 'Понравилось':
+                        for event in longpoll.listen():
+                            if cur.execute('''SELECT last_msg FROM csgo WHERE vk_id = ?''',
+                                                   ('https://vk.com/id' + str(
+                                                       event.obj.message['from_id']),)).fetchall()[0][
+                                        0] == 'Создать свою':
+                                break
+                            if event.type == VkBotEventType.MESSAGE_NEW:
+                                cur.execute('''UPDATE csgo
+                                            SET last_msg = ?
+                                            WHERE vk_id = ?''', (
+                                    event.obj.message['text'],
+                                    'https://vk.com/id' + str(event.obj.message['from_id']),))
+                                counter = cur.execute('''SELECT counter from csgo WHERE vk_id = ?''',
+                                                      ('https://vk.com/id' + str(
+                                                          event.obj.message['from_id']),)).fetchall()
+                                txt = event.obj.message['text']
+                                try:
+                                    if cur.execute('''SELECT last_msg FROM csgo WHERE vk_id = ?''',
+                                                   ('https://vk.com/id' + str(
+                                                       event.obj.message['from_id']),)).fetchall()[0][
+                                        0] == 'Понравилось' and \
+                                            cur.execute('''SELECT last_msg FROM csgo WHERE vk_id = ?''',
+                                                        ('https://vk.com/id' + str(
+                                                            event.obj.message['from_id']),)).fetchall()[0][
+                                                0] != 'Меню режимов':
+                                        print(cur.execute('''SELECT last_msg FROM csgo WHERE vk_id = ?''',
+                                                        ('https://vk.com/id' + str(
+                                                            event.obj.message['from_id']),)).fetchall()[0][
+                                                0])
+                                        vk.messages.send(user_id=event.obj.message['from_id'],
+                                                         random_id=random.randint(0, 2 ** 64),
+                                                         message=f"Профиль игрока - {profiles[cur.execute('''SELECT counter from csgo WHERE vk_id = ?''', ('https://vk.com/id' + str(event.obj.message['from_id']),)).fetchall()[0][0]][0]}")
+                                        cur.execute('''UPDATE csgo 
+                                                    SET counter = counter + 1
+                                                    WHERE vk_id = ?''',
+                                                    ('https://vk.com/id' + str(
+                                                        event.obj.message['from_id']),)).fetchall()
+                                        counter = \
+                                            cur.execute('''SELECT counter from csgo WHERE vk_id = ?''',
+                                                        ('https://vk.com/id' + str(
+                                                            event.obj.message['from_id']),)).fetchall()[
+                                                0][0]
+                                    elif cur.execute('''SELECT last_msg FROM csgo WHERE vk_id = ?''',
+                                                     ('https://vk.com/id' + str(
+                                                         event.obj.message['from_id']),)).fetchall()[
+                                        0][0] == 'Не понравилось' and \
+                                            cur.execute('''SELECT last_msg FROM csgo WHERE vk_id = ?''',
+                                                        ('https://vk.com/id' + str(
+                                                            event.obj.message['from_id']),)).fetchall()[0][
+                                                0] != 'Меню режимов':
+                                        cur.execute('''UPDATE csgo 
+                                                       SET counter = counter + 1
+                                                       WHERE vk_id = ?''',
+                                                    ('https://vk.com/id' + str(
+                                                        event.obj.message['from_id']),)).fetchall()
+                                        counter = cur.execute('''SELECT counter from csgo WHERE vk_id = ?''', (
+                                            'https://vk.com/id' + str(event.obj.message['from_id']),)).fetchall()[0][0]
+                                    elif cur.execute('''SELECT last_msg FROM csgo WHERE vk_id = ?''',
+                                                     ('https://vk.com/id' + str(
+                                                         event.obj.message['from_id']),)).fetchall()[0][
+                                        0] == 'Меню режимов':
+                                        vk.messages.send(user_id=event.obj.message['from_id'],
+                                                         random_id=random.randint(0, 2 ** 64),
+                                                         message=f"Выберите режим",
+                                                         keyboard=json.dumps(menu_keyboard, ensure_ascii=False)
+                                                         )
+                                        cur.execute('''UPDATE csgo 
+                                                        SET counter = 0
+                                                        WHERE vk_id = ?''',
+                                                    ('https://vk.com/id' + str(
+                                                        event.obj.message['from_id']),)).fetchall()
+                                        send_flag = False
+                                        con.commit()
+                                except IndexError:
+                                    pass
+                                try:
+                                    if send_flag:
+                                        stroka = f"Ранг - {profiles[cur.execute('''SELECT counter from csgo WHERE vk_id = ?''', ('https://vk.com/id' + str(event.obj.message['from_id']),)).fetchall()[0][0]][1]}, Колличество часов - {profiles[cur.execute('''SELECT counter from csgo WHERE vk_id = ?''', ('https://vk.com/id' + str(event.obj.message['from_id']),)).fetchall()[0][0]][2]}"
+                                        vk.messages.send(user_id=event.obj.message['from_id'],
+                                                         random_id=random.randint(0, 2 ** 64),
+                                                         message=stroka,
+                                                         keyboard=json.dumps(like_keyboard, ensure_ascii=False))
+                                except IndexError:
                                     vk.messages.send(user_id=event.obj.message['from_id'],
                                                      random_id=random.randint(0, 2 ** 64),
-                                                     message=f"Профиль игрока - {profiles[cur.execute('''SELECT counter from csgo WHERE vk_id = ?''', ('https://vk.com/id' + str(event.obj.message['from_id']),)).fetchall()[0][0]][0]}")
+                                                     message=f"Анкет больше нету")
                                     cur.execute('''UPDATE csgo 
-                                                SET counter = counter + 1
-                                                WHERE vk_id = ?''', ('https://vk.com/id' + str(event.obj.message['from_id']),)).fetchall()
-                                    counter = \
-                                        cur.execute('''SELECT counter from csgo WHERE vk_id = ?''',
-                                                    ('https://vk.com/id' + str(event.obj.message['from_id']),)).fetchall()[
-                                            0][0]
-                                    print(counter)
-                                elif cur.execute('''SELECT last_msg FROM csgo WHERE vk_id = ?''', ('https://vk.com/id' + str(event.obj.message['from_id']),)).fetchall()[0][0] == 'Не понравилось':
-                                    cur.execute('''UPDATE csgo 
-                                                   SET counter = counter + 1
-                                                   WHERE vk_id = ?''', ('https://vk.com/id' + str(event.obj.message['from_id']),)).fetchall()
-                                    counter = cur.execute('''SELECT counter from csgo WHERE vk_id = ?''', ('https://vk.com/id' + str(event.obj.message['from_id']),)).fetchall()[0][0]
-                                    print(counter)
-                            except IndexError:
-                                pass
-                            try:
-                                stroka = f"Ранг - {profiles[cur.execute('''SELECT counter from csgo WHERE vk_id = ?''', ('https://vk.com/id' + str(event.obj.message['from_id']),)).fetchall()[0][0]][1]}, Колличество часов - {profiles[cur.execute('''SELECT counter from csgo WHERE vk_id = ?''', ('https://vk.com/id' + str(event.obj.message['from_id']),)).fetchall()[0][0]][2]}"
-                                vk.messages.send(user_id=event.obj.message['from_id'],
-                                                 random_id=random.randint(0, 2 ** 64),
-                                                 message=stroka,
-                                                 keyboard=json.dumps(like_keyboard, ensure_ascii=False))
-                            except IndexError:
-                                vk.messages.send(user_id=event.obj.message['from_id'],
-                                                 random_id=random.randint(0, 2 ** 64),
-                                                 message=f"Анкет больше нету")
-                                cur.execute('''UPDATE csgo 
-                                                SET counter = 0
-                                                WHERE vk_id = ?''',
-                                            ('https://vk.com/id' + str(event.obj.message['from_id']),)).fetchall()
+                                                    SET counter = 0
+                                                    WHERE vk_id = ?''',
+                                                ('https://vk.com/id' + str(event.obj.message['from_id']),)).fetchall()
 
-                            con.commit()
+                                con.commit()
+                except IndexError:
+                    vk.messages.send(user_id=event.obj.message['from_id'],
+                                     message="Сначала зарегестрируйтесь",
+                                     random_id=random.randint(0, 2 ** 64))
+                    vk.messages.send(user_id=event.obj.message['from_id'],
+                                     random_id=random.randint(0, 2 ** 64),
+                                     message=f"Выберите игру:",
+                                     keyboard=json.dumps(menu_keyboard, ensure_ascii=False))
 
-                if cur.execute('''SELECT last_msg FROM csgo WHERE vk_id = ?''', ('https://vk.com/id' + str(event.obj.message['from_id']),)).fetchall()[0][0] == 'Создать свою':
+                if txt == 'Создать свою':
                     vk.messages.send(user_id=event.obj.message['from_id'],
                                      random_id=random.randint(0, 2 ** 64),
                                      message=f"Выберите игру:",
@@ -311,7 +391,8 @@ def main():
             elif event.obj.message['text'] == 'CSGO' and lst_flag:
                 try:
                     result = cur.execute('''INSERT INTO csgo(vk_id, counter) 
-                                            VALUES(?, ?)''', (vk_url, 0,))
+                                            VALUES(?, ?)''',
+                                         ('https://vk.com/id' + str(event.obj.message['from_id']), 0,))
                     con.commit()
                     csgo_flag = True
                 except sqlite3.IntegrityError:
@@ -334,7 +415,7 @@ def main():
                             txt = event.obj.message['text']
                             print(txt)
                             if event.obj.message['text'] == 'Ранг' and csgo_flag:
-                                if len(vk_url) == 0:
+                                if len('https://vk.com/id' + str(event.obj.message['from_id'])) == 0:
                                     vk.messages.send(user_id=event.obj.message['from_id'],
                                                      random_id=random.randint(0, 2 ** 64),
                                                      message=f"Сначала дайте свою ссылку на страницу в вк")
@@ -347,7 +428,8 @@ def main():
                                 rank = txt
                                 result = cur.execute('''UPDATE csgo
                                                         SET rank = ?
-                                                        WHERE vk_id = ?''', (txt, vk_url,))
+                                                        WHERE vk_id = ?''',
+                                                     (txt, 'https://vk.com/id' + str(event.obj.message['from_id']),))
                                 con.commit()
                                 vk.messages.send(user_id=event.obj.message['from_id'],
                                                  random_id=random.randint(0, 2 ** 64),
@@ -367,9 +449,11 @@ def main():
                             if event.obj.message['text'] in csgo_hours:
                                 result = cur.execute('''UPDATE csgo
                                                         SET hours = ?
-                                                        WHERE vk_id = ?''', (txt, vk_url,))
+                                                        WHERE vk_id = ?''',
+                                                     (txt, 'https://vk.com/id' + str(event.obj.message['from_id']),))
                                 con.commit()
 
 
 if __name__ == '__main__':
-    main()
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(main())
