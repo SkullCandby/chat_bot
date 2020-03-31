@@ -387,9 +387,12 @@ async def main():
                         first_flag = True
                         await send_profile(event)
                         send_flag = True
-
+                        vk_url = 'https://vk.com/id' + str(event.obj.message['from_id'])
                         for event in longpoll.listen():
-                            if event.type == VkBotEventType.MESSAGE_NEW:
+                            if event.type == VkBotEventType.MESSAGE_NEW and cur.execute('''SELECT watch_flag FROM csgo WHERE vk_id = ?''',
+                                   (vk_url,)).fetchall()[0][0] == '1':
+                                print(cur.execute('''SELECT last_msg FROM csgo WHERE vk_id = ?''',
+                                   (vk_url,)).fetchall()[0][0])
                                 cur.execute('''UPDATE csgo
                                             SET last_msg = ?
                                             WHERE vk_id = ?''', (
@@ -408,10 +411,7 @@ async def main():
                                                         ('https://vk.com/id' + str(
                                                             event.obj.message['from_id']),)).fetchall()[0][
                                                 0] != 'Меню режимов':
-                                        print(cur.execute('''SELECT last_msg FROM csgo WHERE vk_id = ?''',
-                                                          ('https://vk.com/id' + str(
-                                                              event.obj.message['from_id']),)).fetchall()[0][
-                                                  0])
+                                        print(35255552525523252525)
                                         await send_id(event)
                                         cur.execute('''UPDATE csgo 
                                                     SET counter = counter + 1
@@ -423,6 +423,7 @@ async def main():
                                                         ('https://vk.com/id' + str(
                                                             event.obj.message['from_id']),)).fetchall()[
                                                 0][0]
+                                        send_flag = True
                                     elif cur.execute('''SELECT last_msg FROM csgo WHERE vk_id = ?''',
                                                      ('https://vk.com/id' + str(
                                                          event.obj.message['from_id']),)).fetchall()[
@@ -438,6 +439,12 @@ async def main():
                                                         event.obj.message['from_id']),)).fetchall()
                                         counter = cur.execute('''SELECT counter from csgo WHERE vk_id = ?''', (
                                             'https://vk.com/id' + str(event.obj.message['from_id']),)).fetchall()[0][0]
+                                        send_flag = True
+                                    elif  cur.execute('''SELECT last_msg FROM csgo WHERE vk_id = ?''',
+                                                     ('https://vk.com/id' + str(
+                                                         event.obj.message['from_id']),)).fetchall()[0][
+                                        0] == 'Смотреть анкеты':
+                                            await send_profile(event)
                                     elif cur.execute('''SELECT last_msg FROM csgo WHERE vk_id = ?''',
                                                      ('https://vk.com/id' + str(
                                                          event.obj.message['from_id']),)).fetchall()[0][
@@ -454,7 +461,6 @@ async def main():
                                                         event.obj.message['from_id']),)).fetchall()
                                         send_flag = False
                                         con.commit()
-                                        break
                                 except IndexError:
                                     pass
                                 try:
@@ -470,6 +476,7 @@ async def main():
                                                 ('https://vk.com/id' + str(event.obj.message['from_id']),)).fetchall()
 
                                 con.commit()
+                                vk_url = 'https://vk.com/id' + str(event.obj.message['from_id'])
                 except IndexError:
                     vk.messages.send(user_id=event.obj.message['from_id'],
                                      message="Сначала зарегестрируйтесь",
