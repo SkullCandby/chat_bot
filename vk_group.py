@@ -172,13 +172,17 @@ async def watch_profiles(event):
 
 
 def csgo_profile(event):
-    print('rank')
+    print(cur.execute('''SELECT csgo_flag FROM csgo WHERE vk_id = ?''',
+               ('https://vk.com/id' + str(event.obj.message['from_id']),)).fetchall()[0][
+        0], type(cur.execute('''SELECT csgo_flag FROM csgo WHERE vk_id = ?''',
+                                     ('https://vk.com/id' + str(event.obj.message['from_id']),)).fetchall()[0][
+        0]))
     if cur.execute('''SELECT last_msg FROM msg WHERE vk_id = ?''',
                    ('https://vk.com/id' + str(event.obj.message['from_id']),)).fetchall()[0][
         0] == 'Ранг' and cur.execute('''SELECT csgo_flag FROM csgo WHERE vk_id = ?''',
                                      ('https://vk.com/id' + str(event.obj.message['from_id']),)).fetchall()[0][
-        0] == 1:
-
+        0] == '1':
+        print('rank')
         vk.messages.send(user_id=event.obj.message['from_id'],
                          random_id=random.randint(0, 2 ** 64),
                          message=f"Выберите ранг",
@@ -504,8 +508,7 @@ def csgo(event):
 
     if cur.execute('''SELECT csgo_flag FROM csgo WHERE vk_id = ?''',
                    ('https://vk.com/id' + str(event.obj.message['from_id']),)).fetchall()[0][
-        0] == '1' and not chek_profile(
-        'https://vk.com/id' + str(event.obj.message['from_id']), 'CSGO'):
+        0] == '1':
         txt = event.obj.message['text']
         print(txt, txt, txt)
         csgo_profile(event)
