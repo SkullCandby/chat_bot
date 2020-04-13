@@ -30,11 +30,14 @@ cur = con.cursor()
 
 def chek_profile(vk_id, game=None):
     if game == 'CSGO':
-        profiles = cur.execute('''SELECT * from csgo WHERE vk_id = ?''', (vk_id,)).fetchall()[0]
         flag = True
-        for i in range(len(profiles)):
-            if profiles[i] is None:
-                flag = flag and False
+        try:
+            profiles = cur.execute('''SELECT * from csgo WHERE vk_id = ?''', (vk_id,)).fetchall()[0]
+            for i in range(len(profiles)):
+                if profiles[i] is None:
+                    flag = flag and False
+        except IndexError:
+            flag = False
         return flag
 
 
@@ -542,6 +545,8 @@ async def main():
             if txt not in comand_lst and txt not in like_words and txt not in create_profile_words or txt in setting_words:
                 print(txt)
                 try:
+                    print('https://vk.com/id' + str(event.obj.message['from_id']),
+                                 "CSGO")
                     if cur.execute('''SELECT last_msg FROM msg WHERE vk_id = ?''',
                                    ('https://vk.com/id' + str(event.obj.message['from_id']),)).fetchall()[0][0] == \
                             'Смотреть анкеты' or txt in setting_words:
@@ -552,6 +557,7 @@ async def main():
                         if cur.execute('''SELECT msg_flag FROM msg WHERE vk_id = ?''',
                                        ('https://vk.com/id' + str(event.obj.message['from_id']),)).fetchall()[0][
                             0] == 1:
+
                             vk.messages.send(user_id=event.obj.message['from_id'],
                                              random_id=random.randint(0, 2 ** 64),
                                              message=f"Выберите игру",
@@ -562,22 +568,25 @@ async def main():
                                         ('https://vk.com/id' + str(event.obj.message['from_id']),))
                             con.commit()
                         else:
+
                             if cur.execute('''SELECT game FROM msg WHERE vk_id = ?''',
-                                           ('https://vk.com/id' + str(event.obj.message['from_id']),)).fetchall()[0][0] is not None:
+                                           ('https://vk.com/id' + str(event.obj.message['from_id']),)).fetchall()[0][0] is None:
                                 if chek_profile('https://vk.com/id' + str(event.obj.message['from_id']),
                                                 "CSGO") or chek_profile(
-                                        'https://vk.com/id' + str(event.obj.message['from_id']), "CSGO"):
+                                        'https://vk.com/id' + str(event.obj.message['from_id']), "RL"):
+
                                     pass
-                                else:
-                                    print(chek_profile('https://vk.com/id' + str(event.obj.message['from_id']), "CSGO"))
-                                    vk.messages.send(user_id=event.obj.message['from_id'],
-                                                     random_id=random.randint(0, 2 ** 64),
-                                                     message=f"Сначала зарегестрируйстесь")
-                                    vk.messages.send(user_id=event.obj.message['from_id'],
-                                                     random_id=random.randint(0, 2 ** 64),
-                                                     message=f"Выберите режим",
-                                                     keyboard=json.dumps(menu_keyboard, ensure_ascii=False)
-                                                     )
+                            else:
+                                chek_profile('https://vk.com/id' + str(event.obj.message['from_id']), "CSGO")
+                                vk.messages.send(user_id=event.obj.message['from_id'],
+                                                             random_id=random.randint(0, 2 ** 64),
+                                                            message=f"Сначала зарегестрируйстесь")
+                                vk.messages.send(user_id=event.obj.message['from_id'],
+                                                             random_id=random.randint(0, 2 ** 64),
+                                                             message=f"Выберите режим",
+                                                             keyboard=json.dumps(menu_keyboard, ensure_ascii=False)
+                                                             )
+
                         if event.obj.message['text'] == 'смотреть CSGO':
                             cur.execute('''UPDATE msg
                                         SET game = ?
@@ -779,7 +788,6 @@ async def main():
                                             cur.execute('''SELECT last_msg FROM msg WHERE vk_id = ?''',
                                                         (vk_url,)).fetchall()[0][0] in csgo_rangs:
                                         csgo(event)
-
                 except IndexError:
                     pass
                 txt = event.obj.message['text']
