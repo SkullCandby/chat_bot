@@ -140,7 +140,6 @@ def chek_profile(vk_id, game=None):
         flag = True
         try:
             profiles = cur.execute('''SELECT * from rl WHERE vk_id = ?''', (vk_id,)).fetchall()[0]
-            print(profiles)
             for i in range(len(profiles)):
                 if profiles[i] is None:
                     flag = flag and False
@@ -230,7 +229,6 @@ async def send_id(event, game):
         cur.execute('''UPDATE msg SET msg_flag = 1 WHERE vk_id = ?''',
                     ('https://vk.com/id' + str(event.obj.message['from_id']),))
 
-
 def csgo_profile(event):
     # эта фунция для создания анкеты
     if cur.execute('''SELECT last_msg FROM msg WHERE vk_id = ?''',
@@ -253,7 +251,7 @@ def csgo_profile(event):
         vk.messages.send(user_id=event.obj.message['from_id'],
                          random_id=random.randint(0, 2 ** 64),
                          message='Колличество часов',
-                         keyboard=csgo_keyboard.get_keyboard())
+                         keyboard=hours_keyboard.get_keyboard())
 
         con.commit()
     if event.obj.message['text'] == 'Кол-во часов' and cur.execute('''SELECT csgo_flag FROM csgo WHERE vk_id = ?''',
@@ -401,7 +399,7 @@ def rl_profile(event):
         vk.messages.send(user_id=event.obj.message['from_id'],
                          random_id=random.randint(0, 2 ** 64),
                          message='Колличество часов',
-                         keyboard=csgo_keyboard.get_keyboard())
+                         keyboard=hours_keyboard.get_keyboard())
         con.commit()
     if event.obj.message['text'] == 'Кол-во часов' and cur.execute('''SELECT rl_flag FROM rl WHERE vk_id = ?''',
                                                                    ('https://vk.com/id' + str(event.obj.message[
@@ -512,9 +510,14 @@ async def main():
                                        ('https://vk.com/id' + str(event.obj.message['from_id']),)).fetchall()[0][
                             0] is not None:
                             # сразу отправляю анкету игрока
-                            await send_profile(event, cur.execute('''SELECT game FROM msg WHERE vk_id = ?''',
-                                                                  ('https://vk.com/id' + str(
-                                                                      event.obj.message['from_id']),)).fetchall()[0][0])
+                            try:
+                                await send_profile(event, cur.execute('''SELECT game FROM msg WHERE vk_id = ?''',
+                                                                      ('https://vk.com/id' + str(
+                                                                          event.obj.message['from_id']),)).fetchall()[0][0])
+                            except TypeError:
+                                await send_profile(event, cur.execute('''SELECT game FROM msg WHERE vk_id = ?''',
+                                                                ('https://vk.com/id' + str(
+                                                                    event.obj.from_id),)).fetchall()[0][0])
                             send_flag = True
                             vk_url = 'https://vk.com/id' + str(event.obj.message['from_id'])
                             for event in longpoll.listen():
@@ -559,7 +562,7 @@ async def main():
                                                 "CSGO"):
                                                 pass
                                             else:
-                                                print(9475435353543535535543553875475573)
+
                                                 vk.messages.send(user_id=event.obj.message['from_id'],
                                                                  random_id=random.randint(0, 2 ** 64),
                                                                  message=f"Сначала зарегестрируйстесь")
@@ -626,11 +629,27 @@ async def main():
                                                                                  event.obj.message[
                                                                                      'from_id']),)).fetchall()[0][0])
                                             cur.execute('''UPDATE msg 
-                                                        SET counter = counter + 1
-                                                        WHERE vk_id = ?''',
+                                                                                               SET counter = counter + 1
+                                                                                               WHERE vk_id = ?''',
                                                         ('https://vk.com/id' + str(
                                                             event.obj.message['from_id']),)).fetchall()
-                                            send_flag = True
+                                        if cur.execute('''SELECT last_msg FROM msg WHERE vk_id = ?''',
+                                                       ('https://vk.com/id' + str(
+                                                           event.obj.message['from_id']),)).fetchall()[0][
+                                            0] == 'Понравилось' and \
+                                                cur.execute('''SELECT game FROM msg WHERE vk_id = ?''',
+                                                            ('https://vk.com/id' + str(
+                                                                event.obj.message['from_id']),)).fetchall()[0][
+                                                    0] is not None:
+                                            await send_id(event, cur.execute('''SELECT game FROM msg WHERE vk_id = ?''',
+                                                                             ('https://vk.com/id' + str(
+                                                                                 event.obj.message[
+                                                                                     'from_id']),)).fetchall()[0][0])
+                                            cur.execute('''UPDATE msg 
+                                                                                               SET counter = counter + 1
+                                                                                               WHERE vk_id = ?''',
+                                                        ('https://vk.com/id' + str(
+                                                            event.obj.message['from_id']),)).fetchall()
                                         elif cur.execute('''SELECT last_msg FROM msg WHERE vk_id = ?''',
                                                          ('https://vk.com/id' + str(
                                                              event.obj.message['from_id']),)).fetchall()[0][
