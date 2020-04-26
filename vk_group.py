@@ -2,12 +2,13 @@ import vk_api
 from vk_api.bot_longpoll import VkBotLongPoll, VkBotEventType
 from vk_api.keyboard import VkKeyboard, VkKeyboardColor
 import random
-import datetime
-import json
 import sqlite3
 import asyncio
 
 '''
+часы; моя анкета
+
+
 пояснение к переменным таблицы.
 сsgo:
 csgo_flag - этот флаг я использую в процессе создания анкеты
@@ -30,9 +31,9 @@ msg_flag - флаг для отправки сообщений
 create_game - игра по которой я создаю анкету
 counter - это обычный счётчик для просмотра анкет
 csgo - это таблица в которой хранятся данные пользователей котрые зарегестрировались в csgo
-rl - это таблица в которой хранятся данные пользователей котрые зарегестрировались в rl
+rl - это таблица, в которой хранятся данные пользователей, которые зарегестрировались в rl
 msg - в этой таблице хранятся данные которыми пользователей пользуются и в случае когда он создаёт или смотрит анкету/
-анкеты csgo и в случае с rl. тут хранятся последнии сооьщения, счётчик и тд.
+анкеты csgo и в случае с rl. тут хранятся последнии сообщения, счётчик и тд.
 '''
 vk_session = vk_api.VkApi(
     token='9ee8528a5486ff195b298ba1a30994c98def107c137d8a2a058c26df9127c21487f7843bb399e51d9fd08')
@@ -62,12 +63,14 @@ cur = con.cursor()
 like_keyboard = VkKeyboard(one_time=False)
 like_keyboard.add_button('Понравилось', color=VkKeyboardColor.PRIMARY)
 like_keyboard.add_button('Не понравилось', color=VkKeyboardColor.NEGATIVE)
+like_keyboard.add_line()
 like_keyboard.add_button('Меню режимов', color=VkKeyboardColor.POSITIVE)
 
 menu_keyboard = VkKeyboard(one_time=False)
 menu_keyboard.add_button('Смотреть анкеты', color=VkKeyboardColor.PRIMARY)
 menu_keyboard.add_button('Создать свою', color=VkKeyboardColor.NEGATIVE)
-
+menu_keyboard.add_line()
+menu_keyboard.add_button('Моя анкета', color=VkKeyboardColor.NEGATIVE)
 keyboard = VkKeyboard(one_time=False)
 keyboard.add_button('CSGO', color=VkKeyboardColor.PRIMARY)
 keyboard.add_button('RL', color=VkKeyboardColor.NEGATIVE)
@@ -96,6 +99,7 @@ csgo_rang_keyboard.add_button('Сильвер 6', color=VkKeyboardColor.PRIMARY)
 csgo_rang_keyboard.add_line()
 csgo_rang_keyboard.add_button('Звёзда 1', color=VkKeyboardColor.NEGATIVE)
 csgo_rang_keyboard.add_button('Звёзда 2', color=VkKeyboardColor.NEGATIVE)
+csgo_rang_keyboard.add_line()
 csgo_rang_keyboard.add_button('Звёзда 3', color=VkKeyboardColor.NEGATIVE)
 csgo_rang_keyboard.add_button('Звёзда 4', color=VkKeyboardColor.NEGATIVE)
 csgo_rang_keyboard.add_line()
@@ -116,7 +120,9 @@ watch_keyboard.add_button('смотреть RL', color=VkKeyboardColor.NEGATIVE)
 
 rl_rangs_keyboard = VkKeyboard(one_time=False)
 rl_rangs_keyboard.add_button('Prospect 1 - Prospect elite', color=VkKeyboardColor.PRIMARY)
+rl_rangs_keyboard.add_line()
 rl_rangs_keyboard.add_button('challenger 1 - challenger elite', color=VkKeyboardColor.NEGATIVE)
+rl_rangs_keyboard.add_line()
 rl_rangs_keyboard.add_button('rising star - champion', color=VkKeyboardColor.POSITIVE)
 
 
@@ -615,41 +621,46 @@ async def main():
                                     txt = event.obj.message['text']
                                     # в этой часте кода я обрабатываю реакцию пользователя
                                     try:
-                                        # обработка исключений
                                         if cur.execute('''SELECT last_msg FROM msg WHERE vk_id = ?''',
                                                        ('https://vk.com/id' + str(
                                                            event.obj.message['from_id']),)).fetchall()[0][
                                             0] == 'Понравилось' and \
-                                                cur.execute('''SELECT game FROM msg WHERE vk_id = ?''',
+                                                cur.execute('''SELECT last_msg FROM msg WHERE vk_id = ?''',
                                                             ('https://vk.com/id' + str(
                                                                 event.obj.message['from_id']),)).fetchall()[0][
-                                                    0] is not None:
+                                                    0] != 'Меню режимов':
                                             await send_id(event, cur.execute('''SELECT game FROM msg WHERE vk_id = ?''',
-                                                                             ('https://vk.com/id' + str(
-                                                                                 event.obj.message[
-                                                                                     'from_id']),)).fetchall()[0][0])
+                                                            ('https://vk.com/id' + str(
+                                                                event.obj.message['from_id']),)).fetchall()[
+                                                    0][0])
                                             cur.execute('''UPDATE msg 
-                                                                                               SET counter = counter + 1
-                                                                                               WHERE vk_id = ?''',
+                                                        SET counter = counter + 1
+                                                        WHERE vk_id = ?''',
                                                         ('https://vk.com/id' + str(
                                                             event.obj.message['from_id']),)).fetchall()
-                                        if cur.execute('''SELECT last_msg FROM msg WHERE vk_id = ?''',
-                                                       ('https://vk.com/id' + str(
-                                                           event.obj.message['from_id']),)).fetchall()[0][
-                                            0] == 'Понравилось' and \
-                                                cur.execute('''SELECT game FROM msg WHERE vk_id = ?''',
+                                            counter = \
+                                                cur.execute('''SELECT counter from msg WHERE vk_id = ?''',
+                                                            ('https://vk.com/id' + str(
+                                                                event.obj.message['from_id']),)).fetchall()[
+                                                    0][0]
+                                            send_flag = True
+                                        elif cur.execute('''SELECT last_msg FROM msg WHERE vk_id = ?''',
+                                                         ('https://vk.com/id' + str(
+                                                             event.obj.message['from_id']),)).fetchall()[
+                                            0][0] == 'Не понравилось' and \
+                                                cur.execute('''SELECT last_msg FROM msg WHERE vk_id = ?''',
                                                             ('https://vk.com/id' + str(
                                                                 event.obj.message['from_id']),)).fetchall()[0][
-                                                    0] is not None:
-                                            await send_id(event, cur.execute('''SELECT game FROM msg WHERE vk_id = ?''',
-                                                                             ('https://vk.com/id' + str(
-                                                                                 event.obj.message[
-                                                                                     'from_id']),)).fetchall()[0][0])
+                                                    0] != 'Меню режимов':
                                             cur.execute('''UPDATE msg 
-                                                                                               SET counter = counter + 1
-                                                                                               WHERE vk_id = ?''',
+                                                           SET counter = counter + 1
+                                                           WHERE vk_id = ?''',
                                                         ('https://vk.com/id' + str(
                                                             event.obj.message['from_id']),)).fetchall()
+                                            counter = cur.execute('''SELECT counter from msg WHERE vk_id = ?''', (
+                                                'https://vk.com/id' + str(event.obj.message['from_id']),)).fetchall()[
+                                                0][0]
+                                            send_flag = True
                                         elif cur.execute('''SELECT last_msg FROM msg WHERE vk_id = ?''',
                                                          ('https://vk.com/id' + str(
                                                              event.obj.message['from_id']),)).fetchall()[0][
@@ -783,6 +794,23 @@ async def main():
                                                             SET last_msg = ?
                                                             WHERE vk_id = ?''',
                             (event.obj.message['text'], 'https://vk.com/id' + str(event.obj.message['from_id']),))
+                if event.obj.message['text'] == 'Моя анкета':
+                    if chek_profile('https://vk.com/id' + str(
+                                                         event.obj.message['from_id']), "CSGO"):
+                        profiles_cs = cur.execute('SELECT rank, hours FROM csgo WHERE vk_id = ?', ('https://vk.com/id' + str(
+                                                         event.obj.message['from_id']),)).fetchall()[0]
+                        stroka = f'Ваш ранг в CSGO- {profiles_cs[0]}, кол-во часов в CSGO - {profiles_cs[1]}'
+                        vk.messages.send(user_id=event.obj.message['from_id'],
+                                         random_id=random.randint(0, 2 ** 64),
+                                         message=stroka)
+                    if chek_profile('https://vk.com/id' + str(
+                                                         event.obj.message['from_id']), "rl"):
+                        profiles_rl = cur.execute('SELECT rank, hours FROM rl WHERE vk_id = ?', ('https://vk.com/id' + str(
+                                                         event.obj.message['from_id']),)).fetchall()[0]
+                        stroka = f'Ваш ранг в RL- {profiles_rl[0]}, кол-во часов в RL- {profiles_rl[1]}'
+                        vk.messages.send(user_id=event.obj.message['from_id'],
+                                         random_id=random.randint(0, 2 ** 64),
+                                         message=stroka)
                 # тут такой же процесс регистрации как и выше
                 if txt == 'Создать свою':
                     await game_choose(event)
